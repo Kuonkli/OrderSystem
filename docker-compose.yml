@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orders_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - order-net
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - USERS_SERVICE_URL=http://users:8081
+      - JWT_SECRET=j2f3l2kd658vK-09SGHksvSKGLSDGJ
+    depends_on:
+      - users
+    networks:
+      - order-net
+
+  users:
+    build:
+      context: .
+      dockerfile: services/users/Dockerfile
+    container_name: users
+    restart: unless-stopped
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=orders_db
+      - DB_SSLMODE=disable
+      - JWT_SECRET=j2f3l2kd658vK-09SGHksvSKGLSDGJ
+    depends_on:
+      - postgres
+    networks:
+      - order-net
+
+volumes:
+  postgres_data:
+
+networks:
+  order-net:
