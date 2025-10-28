@@ -19,10 +19,12 @@ func main() {
 
 	// Users-service URL из env
 	usersServiceURL := os.Getenv("USERS_SERVICE_URL")
+	ordersServiceURL := os.Getenv("ORDERS_SERVICE_URL")
 	jwtKey := []byte(os.Getenv("JWT_SECRET"))
 
 	tokenService := tokens.NewTokenService(jwtKey, log)
 	usersProxy := handlers.NewUsersProxy(usersServiceURL, log)
+	ordersProxy := handlers.NewOrdersProxy(ordersServiceURL, log)
 
 	router := gin.Default()
 
@@ -36,14 +38,25 @@ func main() {
 		protected := api.Group("/protected", middleware.AuthMiddleware(tokenService))
 		{
 			protected.POST("/logout", usersProxy.ProxyTo("/users/logout"))
-			protected.GET("/user/profile", usersProxy.ProxyTo("/users/profile"))
-			protected.PUT("/user/profile", usersProxy.ProxyTo("/users/profile"))
+			users := protected.Group("/user")
+			{
+				users.GET("/profile", usersProxy.ProxyTo("/users/profile"))
+				users.PUT("/profile", usersProxy.ProxyTo("/users/profile"))
+			}
+			order := protected.Group("/order")
+			{
+				order.POST("/add", ordersProxy.ProxyTo("/orders"))
+				order.GET("/list", ordersProxy.ProxyTo("/orders"))
+				order.GET("/:id", func(c *gin.Context) {
+					ordersProxy.ProxyTo("/orders/" + c.Param("id"))(c)
+				})
+				order.PUT("/:id/status", func(c *gin.Context) {
+					ordersProxy.ProxyTo("/orders/" + c.Param("id") + "/status")(c)
+				})
+			}
+
 		}
 	}
-
-	// Для защищенных роутов (прокси к другим сервисам) используй миддлвэр
-	// Например, router.Group("/api/users").Use(middleware.AuthMiddleware(jwtKey))
-	// Затем проксирование к users-service
 
 	err := router.Run(":8080")
 	if err != nil {
