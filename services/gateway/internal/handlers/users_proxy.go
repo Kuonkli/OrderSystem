@@ -36,8 +36,13 @@ func (p *UsersProxy) ProxyTo(path string) gin.HandlerFunc {
 		}
 
 		req.Header = c.Request.Header.Clone()
-		req.Header.Set("X-User-ID", c.GetString("user_id"))
-		req.Header.Set("X-User-Role", c.GetString("role"))
+
+		if userID := c.GetString("user_id"); userID != "" {
+			req.Header.Set("X-User-ID", userID)
+		}
+		if role := c.GetString("role"); role != "" {
+			req.Header.Set("X-User-Role", role)
+		}
 
 		resp, err := p.client.Do(req)
 		if err != nil {
@@ -53,7 +58,7 @@ func (p *UsersProxy) ProxyTo(path string) gin.HandlerFunc {
 		if access != "" {
 			c.SetCookie("access_token", access, 900, "/", "", false, true)
 			p.log.Info("Set access_token from header")
-			resp.Header.Del("Access-Token") // Убираем, чтобы не отдавать клиенту
+			resp.Header.Del("Access-Token")
 		}
 
 		if refresh != "" {
